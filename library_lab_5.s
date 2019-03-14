@@ -101,7 +101,7 @@ gpio_init:
 	ORR r7, r7, #0x3C
 	STRB r7, [r8]
 
-; ENABLE GPIO Interrupts by enabling NVIC (Nested Vector Interrupt Controller) by writing a 1 to bit 1 of EN0
+; ENABLE GPIO Interrupts by enabling NVIC (Nested Vector Interrupt Controller) by writing a 1 to bit 1 of EN0 hhhh
 	MOV r0, #0xE100
 	MOVT r0, #0xE000
 	LDR r2, [r0]
