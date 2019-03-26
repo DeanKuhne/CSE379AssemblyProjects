@@ -24,30 +24,6 @@ gpio_init:
 	ORR r2, r2, #0x2B
 	STR r2, [r0]
 
-	MOV r0, #0x4404
-	MOVT r0, #0x4000
-	LDR r2, [r0]
-	AND r2, r2, #0x00
-	STR r2, [r0]
-
-	MOV r0, #0x4408
-	MOVT r0, #0x4000
-	LDR r2, [r0]
-	AND r2, r2, #0x00
-	STR r2, [r0]
-
-	MOV r0, #0x440C
-	MOVT r0, #0x4000
-	LDR r2, [r0]
-	ORR r2, r2, #0x2B
-	STR r2, [r0]
-
-	MOV r0, #0x4410
-	MOVT r0, #0x4000
-	LDR r2, [r0]
-	ORR r2, r2, #0x2B
-	STR r2, [r0]
-
 ;------------------PORTD--------------
 	MOV r12, #0x73FC
 	MOVT r12, #0x4000	; Sets r12 to PORTD's data register
@@ -61,7 +37,7 @@ gpio_init:
 	MOV r8, #0x751C
 	MOVT r8, #0x4000	; Sets r8 to digital register
 	LDRB r7, [r8]
-	ORR r7, r7, #0xF;uhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+	ORR r7, r7, #0xF	;uhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 	STRB r7, [r8]
 
 	LDRB r5, [r12]
@@ -76,12 +52,6 @@ gpio_init:
 	SUB r10, r10, r10
 	SUB r11, r11, r11
 
-; ENABLE GPIO Interrupts by enabling NVIC (Nested Vector Interrupt Controller) by writing a 1 to bit 1 of EN0
-	MOV r0, #0xE100
-	MOVT r0, #0xE000
-	LDR r2, [r0]
-	ORR r2, r2, #0x8
-	STR r2, [r0]
 ;---------------END PORTD------------
 
 
@@ -101,14 +71,41 @@ gpio_init:
 	ORR r7, r7, #0x3C
 	STRB r7, [r8]
 
-; ENABLE GPIO Interrupts by enabling NVIC (Nested Vector Interrupt Controller) by writing a 1 to bit 1 of EN0 hhhh
+;--------------END PORTA-------------------
+
+
+	MOV r0, #0x4404
+	MOVT r0, #0x4000
+	LDR r2, [r0]
+	AND r2, r2, #0xC3
+	STR r2, [r0]
+
+	MOV r0, #0x4408
+	MOVT r0, #0x4000
+	LDR r2, [r0]
+	AND r2, r2, #0xC3
+	STR r2, [r0]
+
+	MOV r0, #0x440C
+	MOVT r0, #0x4000
+	LDR r2, [r0]
+	ORR r2, r2, #0x3C
+	STR r2, [r0]
+
+	MOV r0, #0x4410
+	MOVT r0, #0x4000
+	LDR r2, [r0]
+	ORR r2, r2, #0x3C
+	STR r2, [r0]
+
+
+; ENABLE GPIO Interrupts by enabling NVIC (Nested Vector Interrupt Controller) by writing a 1 to bit 1 of EN0
 	MOV r0, #0xE100
 	MOVT r0, #0xE000
 	LDR r2, [r0]
 	ORR r2, r2, #0x1
 	STR r2, [r0]
 
-;--------------END PORTA-------------------
 
 	LDMFD sp!, {lr,r0,r2}
 	BX lr
@@ -252,6 +249,17 @@ output_character:
 	MOV r1, #0xC018
 	MOVT r1, #0x4000	; Sets r1 to be the UART Status Register
 
+
+check_character:
+	CMP r0, #0x2B
+	BLT leaveoutput
+	CMP r0, #0x39
+	BGT leaveoutput
+	CMP r0, #0x2C
+	BEQ leaveoutput
+	CMP r0, #0x2E
+	BEQ leaveoutput
+
 output_character_loopback:
 	MOV r2, #0x20	; Need to look at the 5th bit
 	LDRB r3, [r1]	; Loads the status register into r3
@@ -260,6 +268,9 @@ output_character_loopback:
 	BNE output_character_loopback	; If the 5th bit is a 0, continue further into the program
 
 	STRB r0, [r5]	; Stores the character in the UART data register
+
+
+leaveoutput:
 
 	LDMFD sp!, {lr,r1,r2,r3,r4,r5}
 	MOV pc,lr
@@ -271,6 +282,8 @@ character_newline:
 	MOVT r5, #0x4000	; Sets r5 to be the UART data register
 	MOV r1, #0xC018
 	MOVT r1, #0x4000	; Sets r1 to be the UART Status Register
+
+
 output_character_new:
 	MOV r2, #0x20	; Need to look at the 5th bit
 	LDRB r3, [r1]	; Loads the status register into r3
@@ -450,21 +463,28 @@ illuminate_RGB_LED:
 
 
 read_from_keypad:
-	STMFD SP!,{lr,r6,r7,r8,r9,r10,r11,r12}
+	STMFD SP!,{lr,r5,r6,r7,r8,r9,r10,r11,r12}
 
-testing123:
+;testing123:
+;	MOV r0, #0x00
+;	LDRB r0, [r11]		; stores the key that was pressed into r0
+;	AND r0, r0, #0x3C
+;	CMP r0, #0
+;	BEQ testing123
+
+	MOV r12, #0x73FC
+	MOVT r12, #0x4000	; Sets r12 to PORTD's data register
+
 	MOV r0, #0x00
 	LDRB r0, [r11]		; stores the key that was pressed into r0
 	AND r0, r0, #0x3C
-	CMP r0, #0
-	BEQ testing123
 
-
+row1:
 	MOV r6, #0xE
 	STRB r6, [r12]		; turns off row 1
-	MOV r6, #0x0
-	MOV r6, #0x0
-	MOV r6, #0x0
+	MOV r6, #0xE
+	MOV r6, #0xE
+	MOV r6, #0xE
 	LDRB r1, [r11]		; r1 holds output value of pressed button? (not really though)
 	AND r1, r1, #0x3C
 	CMP r0,r1			;
@@ -520,6 +540,14 @@ isitinrow3:
 	BEQ printC
 
 inrow4:
+	MOV r6, #0x0
+	STRB r6, [r12]		; turns off row 4
+	MOV r6, #0x0
+	MOV r6, #0x0
+	MOV r6, #0x0
+	LDRB r1, [r11]		; r1 holds output value of pressed button? (not really though)
+	AND r1, r1, #0x3C
+	CMP r0,r1
 ;here if it's in row 4
 	CMP r0,#0x4
 	BEQ printstar
@@ -573,22 +601,32 @@ printD:
 	MOV r0, #0x44
 	B printend
 printstar:
-	MOV r0, #0x2A
+;	MOV r0, #0x2A
+	MOV r0, #0x00
 	B printend
 printpound:
-	MOV r0, #0x23
+;	MOV r0, #0x23
+	MOV r0, #0x00
 	B printend
 
 printend:
 
-	LDMFD sp!, {lr,r6,r7,r8,r9,r10,r11,r12}
+
+	MOV r12, #0x73FC
+	MOVT r12, #0x4000	; Sets r12 to PORTD's data register
+	LDRB r5, [r12]
+	MOV r6, #0xF
+	ORR r6, r6, r5
+	STRB r6, [r12]		; Sets pins 0-3 to output 1
+
+	LDMFD sp!, {lr,r5,r6,r7,r8,r9,r10,r11,r12}
 	MOV pc, lr
 
 
 
 compute:
 
-	STMFD SP!,{lr,r1-r12}
+	STMFD SP!, {lr,r0-r12}
 
 	;String is stored at 0x20000000, which is stored in r10
 	; + = 0x2B
@@ -597,6 +635,8 @@ compute:
 	MOV r10, #0
 	MOVT r10, #0x2000
 	MOV r12, #10
+	MOV r7, #0
+	MOV r8, #0
 
 parse1:
 	LDRB r3, [r10], #1	; Load the string into r3, then increment r10
@@ -919,6 +959,7 @@ end:
 	BL printloop		; Go to printloop to check if we can print
 	STRB r3, [r12]		; Print the ones place
 
-	LDMFD SP!,{lr,r1-r12}
+	LDMFD SP!, {lr,r0-r12}
+	BX lr
 
 	.end
