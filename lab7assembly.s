@@ -1,5 +1,5 @@
-	.data
-board:	.string 0xC, "|---------------------------------------------|", 0xA, 0xD, "|*********************************************|", 0xA, 0xD, "|*****     *****     *****     *****     *****|", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|.............................................|", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|&............................................|", 0xA, 0xD, "|---------------------------------------------|", 0
+		.data
+board:	.string 0xC, "|---------------------------------------------|", 0xA, 0xD, "|*********************************************|", 0xA, 0xD, "|*****     *****     *****     *****     *****|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|.............................................|", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|&............................................|", 0xA, 0xD, "|---------------------------------------------|", 0
 
 	.text
 	.global lab7
@@ -16,6 +16,7 @@ board:	.string 0xC, "|---------------------------------------------|", 0xA, 0xD,
 	.global inttoascii
 	.global illuminate_LEDs
 	.global illuminate_RGB_LED
+	.global uart_disable
 ptr: .word board
 
 endprompt: .string "Game Over", 0
@@ -25,6 +26,7 @@ startprompt: .string "Press any key to start the game, then W, A, S, or D to mov
 
 Timer0Handler:
 	STMFD sp!,{lr}
+
 
 
 	LDMFD sp!, {lr}
@@ -58,12 +60,16 @@ checkd:
 
 ;----------------start of home check------------------------------
 homecheck:
+	LDRB v2, [r11]	; load current value of new location into v2
+
+
+	CMP v2, #0x7E	; compare to ~
+	BEQ deadfrog
+
 	MOV a3, #0x0090
 	MOVT a3, #0x2000
 	CMP r11, a3
 	BGT gotvalue
-
-	LDRB v2, [r11]	; load current value of new location into v2
 
 	CMP v2, #0x2A
 	BNE home1
@@ -241,6 +247,8 @@ PortAHandler:
 	BEQ resume
 	MOV r0, #0x2
 	BL illuminate_RGB_LED
+	;print a legend here
+	BL uart_disable
 
 	MOV r9, #0
 	STRB r9, [r10]
@@ -251,6 +259,7 @@ resume:
 	BL illuminate_RGB_LED
 	MOV r9, #0
 	STRB r9, [r10]
+	BL uart_init
 	B leaveport
 
 increasehistory:
@@ -310,6 +319,7 @@ waittostart:
 
 	MOV r0, #0x8
 	BL illuminate_RGB_LED
+	BL timer_init
 
 busy:
 	B busy			; right most home is 0x2000008B, left most is 0x20000069
