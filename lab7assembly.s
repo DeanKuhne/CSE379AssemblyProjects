@@ -1,4 +1,4 @@
-		.data
+	.data
 board:	.string 0xC, "|---------------------------------------------|", 0xA, 0xD, "|*********************************************|", 0xA, 0xD, "|*****     *****     *****     *****     *****|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|.............................................|", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|&............................................|", 0xA, 0xD, "|---------------------------------------------|", 0
 
 	.text
@@ -22,38 +22,31 @@ ptr: .word board
 endprompt: .string "Game Over", 0
 scoreprompt: .string "Your score: ", 0
 replayprompt: .string "Press q to quit, or press anything else to play again.", 0
-startprompt: .string "Press any key to start the game, then W, A, S, or D to move.  To pause/resume, press any button on the keypad.", 0
+startprompt: .string "Press space to start the game, then W, A, S, or D to move.  To pause/resume, press any button on the keypad.", 0
 
 Timer0Handler:
 	STMFD sp!,{lr}
 
-
-
-	LDMFD sp!, {lr}
-	BX lr
-
-Uart0Handler:
-	STMFD sp!,{lr}
-	; store whatever is at the new location, then print that value on next move
-	STRB v2, [r11]
-	BL read_character
-
 ;------------setting r11 to the location of the next astrics spot-------------
-	CMP a1, #0x77	; w
+	STRB v2, [r11]
+
+	CMP v5, #0x77	; w
 	BNE checks
 	SUB r11, r11, #49
 	B homecheck
 checks:
-	CMP a1, #0x73	; s
+	CMP v5, #0x73	; s
 	BNE checka
 	ADD r11, r11, #49
 	B homecheck
 checka:
-	CMP a1, #0x61	; a
+	CMP v5, #0x61	; a
 	BNE checkd
 	SUB r11, r11, #1
 	B homecheck
 checkd:
+	CMP v5, #0x64
+	BNE endtimer
 	ADD r11, r11, #1
 
 ;-------------end of setting r11 to new location--------------------
@@ -153,17 +146,12 @@ gotvalue:
 	SUB r11, r11, #49
 	MOV v2, #0x2E
 notminus:
-;	CMP v2, #0x2A
-;	BNE notast
-;	ADD r11, r11, #49
-;	MOV v2, #0x4C
-;notast:
 	MOV v1, #0x26
 	STRB v1, [r11]	; store & to new location
 boardout:
 	LDR r4, ptr
 	BL output_string	; print the board to putty
-	B enduart
+	B endtimer
 ;---------------------------------dead frog---------------------------
 deadfrog:
 	;need to decrease life counter, as well as place a new frog somewhere in the starting row
@@ -189,7 +177,7 @@ not3:
 	B respawn
 not2:
 	CMP a3, #0x1
-	BNE enduart
+	BNE endtimer
 	MOV a3, #0x0
 	STR a3, [r12]
 	B gameover
@@ -209,6 +197,23 @@ respawn:
 	LDR r4, ptr
 	BL output_string	; print the board to putty
 ;-------------------------end dead frog------------------------------
+endtimer:
+	MOV v5, #0x00
+	MOV r0, #0x0024		; go to TIMER0 Interrupt Clear GPTMICR at 0x40030000 offset 0x24, and clear bit 0 by writting a 1 to it
+	MOVT r0, #0x4003
+	LDR r2, [r0]
+	ORR r2, r2, #0x1
+	STR r2, [r0]
+
+	LDMFD sp!, {lr}
+	BX lr
+
+Uart0Handler:
+	STMFD sp!,{lr}
+	; store whatever is at the new location, then print that value on next move
+	BL read_character
+	MOV v5, r0
+
 enduart:
 ;-----------clear psr----------
 ;	MOV r8, #0xFFFF
@@ -302,7 +307,6 @@ gamestart:
 	MOV r0, #0xF
 	BL illuminate_LEDs
 
-	MOV v2, #0x2E
 	MOV v6, #0x0
 
 	MOV r0, #0xF
@@ -311,15 +315,16 @@ gamestart:
 	MOV r11, #0x02B0
 	MOVT r11, #0x2000
 
+	MOV r0, #0x00
 waittostart:
-	MOV r4, #0x02B0
-	MOVT r4, #0x2000
-	CMP r11, r4
-	BEQ waittostart
+	BL read_character
+	CMP r0, #0x20
+	BNE waittostart
 
 	MOV r0, #0x8
-	BL illuminate_RGB_LED
 	BL timer_init
+	BL illuminate_RGB_LED
+	MOV v2, #0x2E
 
 busy:
 	B busy			; right most home is 0x2000008B, left most is 0x20000069
