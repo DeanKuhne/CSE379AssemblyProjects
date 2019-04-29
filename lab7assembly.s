@@ -1,5 +1,7 @@
 	.data
 board:	.string 0xC, "|---------------------------------------------|", 0xA, 0xD, "|*********************************************|", 0xA, 0xD, "|*****     *****     *****     *****     *****|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|.............................................|", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|&............................................|", 0xA, 0xD, "|---------------------------------------------|", 0
+legend:	.string "| |: Vertical Wall      | +10 for moving forward one space   |", 0xA, 0xD, "| -: Horizontal Wall    | -10 for moving back one space      |", 0xA, 0xD, "| a: Alligator's Back   | +50 for getting a frog home safely |", 0xA, 0xD, "| A: Alligator's Mouth  | +100 for eating a fly              |", 0xA, 0xD, "| L: Log                | +250 for completing the level      |", 0xA, 0xD, "| O: Lily Pad           | +10 for each second of unused time |", 0xA, 0xD, "| &: Frog               |	 when getting a frog home    |", 0xA, 0xD, "| T: Turtle             |", 0xA, 0xD, "| C: Car                |", 0xA, 0xD, "| #: Truck              |", 0xA, 0xD, "| +: Fly                |", 0xA, 0xD, "| H: Occupied Home      |", 0xA, 0xD, "| ~: Water              |", 0
+
 
 	.text
 	.global lab7
@@ -17,12 +19,15 @@ board:	.string 0xC, "|---------------------------------------------|", 0xA, 0xD,
 	.global illuminate_LEDs
 	.global illuminate_RGB_LED
 	.global uart_disable
+	.global character_newline
 ptr: .word board
+ptrl: .word legend
 
 endprompt: .string "Game Over", 0
 scoreprompt: .string "Your score: ", 0
 replayprompt: .string "Press q to quit, or press anything else to play again.", 0
 startprompt: .string "Press space to start the game, then W, A, S, or D to move.  To pause/resume, press any button on the keypad.", 0
+explainprompt: .string "Traverse through the board, without hitting any cars, trucks, or water, and get your frog home.", 0
 
 Timer0Handler:
 	STMFD sp!,{lr}
@@ -32,11 +37,13 @@ Timer0Handler:
 
 	CMP v5, #0x77	; w
 	BNE checks
+	ADD v4, v4, #10
 	SUB r11, r11, #49
 	B homecheck
 checks:
 	CMP v5, #0x73	; s
 	BNE checka
+	SUB v4, v4, #10
 	ADD r11, r11, #49
 	B homecheck
 checka:
@@ -106,6 +113,7 @@ nothome3:
 	ADD v6, v6, #8
 daddyimhome:
 	MOV a1, #0x48
+	ADD v4, v4, #50
 	STRB a1, [r11]
 	B newfrog
 
@@ -236,7 +244,7 @@ PortAHandler:
 	MOV r10, #0x7FF0
 	MOVT r10, #0x2000
 	LDRB r9, [r10]
-	CMP r9, #0xF
+	CMP r9, #0x1
 	BLT increasehistory
 
 	; rgb is white when game hasnt been started
@@ -253,7 +261,10 @@ PortAHandler:
 	MOV r0, #0x2
 	BL illuminate_RGB_LED
 	;print a legend here
+	LDR r4, ptrl
+	BL output_string	; print the legend to putty
 	BL uart_disable
+;	BL timer_disable
 
 	MOV r9, #0
 	STRB r9, [r10]
@@ -300,8 +311,12 @@ lab7:
 gamestart:
 	LDR r4, ptr
 	BL output_string	; print the board to putty
+	MOV v4, #0
 
 	ADR r4, startprompt
+	BL output_string
+
+	ADR r4, explainprompt
 	BL output_string
 
 	MOV r0, #0xF
@@ -339,6 +354,9 @@ gameover:
 	ADR r4, scoreprompt
 	BL output_string	; prints Your score:
 
+	MOV r9, v4
+	BL inttoascii
+	BL character_newline
 	;need to print the score here
 
 	ADR r4, replayprompt
