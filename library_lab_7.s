@@ -16,6 +16,7 @@
 	.global divide
 	.global compute
 	.global inttoascii
+	.global uart_disable
 
 gpio_init:
 	STMFD sp!,{lr,r0,r2}	; Store register lr on stack
@@ -156,17 +157,31 @@ uart_init:
 ;	STR r2, [r0]
 
 ; Set UART0_IBRD_R for 115,200 baud
+;	MOV r0, #0xC024
+;	MOVT r0, #0x4000
+;	LDR r2, [r0]
+;	ORR r2, r2, #8
+;	STR r2, [r0]
+
+; Set UART0_FBRD_R for 115,200 baud
+;	MOV r0, #0xC028
+;	MOVT r0, #0x4000
+;	LDR r2, [r0]
+;	ORR r2, r2, #44
+;	STR r2, [r0]
+
+; Set UART0_IBRD_R for 921,600 baud
 	MOV r0, #0xC024
 	MOVT r0, #0x4000
 	LDR r2, [r0]
-	ORR r2, r2, #8
+	ORR r2, r2, #1
 	STR r2, [r0]
 
-; Set UART0_FBRD_R for 115,200 baud
+; Set UART0_FBRD_R for 921,600 baud
 	MOV r0, #0xC028
 	MOVT r0, #0x4000
 	LDR r2, [r0]
-	ORR r2, r2, #44
+	ORR r2, r2, #5
 	STR r2, [r0]
 
 ; Use system clock
@@ -237,7 +252,18 @@ uart_init:
 	BX lr
 ;---------------END OF UART INIT-----------------------------------------------------------
 
+uart_disable:
+	STMFD sp!,{lr,r0,r1,r2}	; Store register lr on stack
 
+; Disable uart0 control
+	MOV r0, #0xC030
+	MOVT r0, #0x4000
+	LDR r2, [r0]
+	AND r2, r2, #0xF
+	STR r2, [r0]
+
+	LDMFD sp!, {lr,r0,r1,r2}
+	BX lr
 
 timer_init:
 	STMFD sp!, {lr,r0,r1,r2,r3}
@@ -253,6 +279,7 @@ timer_init:
 	STR r2, [r1]
 
 	MOV r3, #0xFFFF
+;	MOVT r3, #0xF
 delay:
 	SUB r3, r3, #1
 	CMP r3, #0
@@ -273,8 +300,8 @@ delay:
 	STR r2, [r0, #0x4]
 
 	LDR r2, [r0, #0x28]		; Set interrupt interval (period)
-	MOV r3, #0x0900
-	MOVT r3, #0x003D
+	MOV r3, #0x1200
+	MOVT r3, #0x007A
 	AND r2, r2, r3
 	STR r2, [r0, #0x28]
 
