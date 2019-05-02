@@ -43,6 +43,7 @@ static void IntDefaultHandler(void);
 extern void _c_int00(void);
 extern void Uart0Handler(void);
 extern void Timer0Handler(void);
+extern void Timer1Handler(void);
 extern void PortAHandler(void);
 //extern void my_i2cIntHandler(void);
 //*****************************************************************************
@@ -107,7 +108,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // Watchdog timer
     Timer0Handler,                      // Timer 0 subtimer A
     IntDefaultHandler,                      // Timer 0 subtimer B
-    IntDefaultHandler,                      // Timer 1 subtimer A
+    Timer1Handler,                      // Timer 1 subtimer A
     IntDefaultHandler,                      // Timer 1 subtimer B
     IntDefaultHandler,                      // Timer 2 subtimer A
     IntDefaultHandler,                      // Timer 2 subtimer B
