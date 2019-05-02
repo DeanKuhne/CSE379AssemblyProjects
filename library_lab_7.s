@@ -266,28 +266,33 @@ uart_disable:
 	BX lr
 
 timer_init:
-	STMFD sp!, {lr,r0,r1,r2,r3}
+	STMFD sp!, {lr,r0,r1,r2,r3, r4}
 
 ; setting base address for the timer
 	MOV r0, #0x0000
 	MOVT r0, #0x4003
+	MOV r4, #0x1000
+	MOVT r4, #0x4003
 
 	MOV r1, #0xE604		; connective clock to timer
 	MOVT r1, #0x400F
 	LDR r2, [r1]
-	ORR r2, r2, #0x1
+	ORR r2, r2, #0x3
 	STR r2, [r1]
 
 	MOV r3, #0xFFFF
-;	MOVT r3, #0xF
 delay:
 	SUB r3, r3, #1
 	CMP r3, #0
 	BNE delay
 
-	LDRB r2, [r0, #0xC]		; disable timer interrupt
+	LDRB r2, [r0, #0xC]		; disable timer interrupt for Timer 0A
 	BIC r2, r2, #1
 	STRB r2, [r0, #0xC]
+
+	LDRB r2, [r4, #0xC]		; disable timer interrupt for Timer 1A
+	BIC r2, r2, #1
+	STRB r2, [r4, #0xC]
 
 	LDR r2, [r0]			; setup timer for 32-bit mode
 	MOV r3, #0xFFF0
@@ -322,7 +327,44 @@ delay:
 	ORR r2, r2, #0x1
 	STR r2, [r0, #0xC]
 
-	LDMFD sp!, {lr,r0,r1,r2,r3}
+
+;-------------------------Timer 1A---------------------------
+
+
+	LDR r2, [r4]			; setup timer for 32-bit mode
+	MOV r3, #0xFFF0
+	MOVT r3, #0xFFFF
+	AND r2, r2, r3
+	STR r2, [r4]
+
+	LDR r2, [r4, #0x4]		; Put timer into periodic mode
+	ORR r2, r2, #0x2
+	STR r2, [r4, #0x4]
+
+	LDR r2, [r4, #0x28]		; Set interrupt interval (period)
+	MOV r3, #0x2400
+	MOVT r3, #0x00F4
+	AND r2, r2, r3
+	STR r2, [r4, #0x28]
+
+	LDR r2, [r4, #0x18]		; Set timer to interrupt when top limit of timer is reached
+	ORR r2, r2, #0x1
+	STR r2, [r4, #0x18]
+
+; ENABLE Timer Interrupts by enabling NVIC (Nested Vector Interrupt Controller) by writing a 1 to bit 21 of EN0
+	MOV r1, #0xE100
+	MOVT r1, #0xE000
+	LDR r2, [r1]
+	MOV r3, #0x0000
+	MOVT r3, #0x0020
+	ORR r2, r2, r3
+	STR r2, [r1]
+
+	LDR r2, [r4, #0xC]		; enable the timer
+	ORR r2, r2, #0x1
+	STR r2, [r4, #0xC]
+
+	LDMFD sp!, {lr,r0,r1,r2,r3,r4}
 	BX lr
 
 
@@ -1090,7 +1132,7 @@ end:
 
 
 inttoascii:
-	STMFD sp!, {lr}
+	STMFD sp!, {lr,r0-r12}
 	MOV r1, #0
 	MOV r2, #0
 	MOV r3, #0
@@ -1170,7 +1212,7 @@ skipr3:
 	BL output_character
 
 endascii:
-	LDMFD SP!, {lr}
+	LDMFD SP!, {lr,r0-r12}
 	BX lr
 
 	.end
