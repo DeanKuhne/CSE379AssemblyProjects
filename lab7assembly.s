@@ -1,5 +1,5 @@
 	.data
-board:	.string 0xC, "|---------------------------------------------|", 0xA, 0xD, "|*********************************************|", 0xA, 0xD, "|*****     *****     *****     *****     *****|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|.............................................|", 0xA, 0xD, "|                           C                 |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "| C                                           |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|               C                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|&............................................|", 0xA, 0xD, "|---------------------------------------------|", 0
+board:	.string 0xC, "|---------------------------------------------|", 0xA, 0xD, "|*********************************************|", 0xA, 0xD, "|*****     *****     *****     *****     *****|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|.............................................|", 0xA, 0xD, "|        C                  C                 |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "| C C                                         |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|               C                    C        |", 0xA, 0xD, "|     ####                ####                |", 0xA, 0xD, "|&............................................|", 0xA, 0xD, "|---------------------------------------------|", 0
 legend:	.string "| |: Vertical Wall      | +10 for moving forward one space   |", 0xA, 0xD, "| -: Horizontal Wall    | -10 for moving back one space      |", 0xA, 0xD, "| a: Alligator's Back   | +50 for getting a frog home safely |", 0xA, 0xD, "| A: Alligator's Mouth  | +100 for eating a fly              |", 0xA, 0xD, "| L: Log                | +250 for completing the level      |", 0xA, 0xD, "| O: Lily Pad           | +10 for each second of unused time |", 0xA, 0xD, "| &: Frog               |	 when getting a frog home    |", 0xA, 0xD, "| T: Turtle             |", 0xA, 0xD, "| C: Car                |", 0xA, 0xD, "| #: Truck              |", 0xA, 0xD, "| +: Fly                |", 0xA, 0xD, "| H: Occupied Home      |", 0xA, 0xD, "| ~: Water              |", 0
 
 
@@ -218,7 +218,10 @@ endtimer:
 	SUB v7, v7, #2
 
 ;#0x2000724D
-	STMFD sp!, {r2, r3, r10, r11, r12}
+	STMFD sp!, {r1, r2, r3, r4, r9, r10, r11, r12}
+
+	MOV r2, #0x20
+
 	MOV r10, #0x024E
 	MOVT r10, #0x2000
 
@@ -228,48 +231,67 @@ endtimer:
 	MOV r12, #0x018A
 	MOVT r12, #0x2000
 
+	MOV r9, #0x027F
+	MOVT r9, #0x2000
+
 carloop2:
 	LDRB r3, [r10], #1
+	CMP r3, #0x7C
+	BEQ carloop4
 	CMP r3, #0x20
 	BEQ carloop2
-	CMP r3, #0x7C
-	BEQ endloops	; get rid of character
-	MOV r2, #0x20
+	LDRB r4, [r10]
+	CMP r4, #0x7C
 	STRB r2, [r10, #-1]
+	BEQ carloop4	; get rid of character
 	STRB r3, [r10]
-
-
+	ADD r10, r10, #1
+	B carloop2
 
 carloop4:
-
-
 	LDRB r3, [r11], #1
+	CMP r3, #0x7C
+	BEQ carloop6
 	CMP r3, #0x20
 	BEQ carloop4
-	CMP r3, #0x7C
-	BEQ endloops	; get rid of character
-	MOV r2, #0x20
+	LDRB r4, [r11]
+	CMP r4, #0x7C
 	STRB r2, [r11, #-1]
+	BEQ carloop6	; get rid of character
 	STRB r3, [r11]
-
+	ADD r11, r11, #1
+	B carloop4
 
 carloop6:
-
 	LDRB r3, [r12], #1
+	CMP r3, #0x7C
+	BEQ truckloop1
 	CMP r3, #0x20
 	BEQ carloop6
-	CMP r3, #0x7C
-	BEQ endloops	; get rid of character
-	MOV r2, #0x20
+	LDRB r4, [r12]
+	CMP r4, #0x7C
 	STRB r2, [r12, #-1]
+	BEQ truckloop1	; get rid of character
 	STRB r3, [r12]
+	ADD r12, r12, #1
+	B carloop6
 
-
-removechar:
-
+truckloop1:
+	LDRB r3, [r9], #1
+	CMP r3, #0x7C
+	BEQ endloops
+	CMP r3, #0x20
+	BEQ truckloop1
+	LDRB r4, [r9, #-2]
+	CMP r4, #0x7C
+	STRB r2, [r9, #-1] ; here we are setting the head # to a space
+	BEQ truckloop1
+	MOV r1, #0x23 ; r1 holds a # character
+	STRB r1, [r9, #-2] ;set the space to the left of head to the new # character
+	B truckloop1
 
 endloops:
-	LDMFD sp!, {r2, r3, r10, r11, r12}
+	LDMFD sp!, {r1, r2, r3, r4, r9, r10, r11, r12}
 
 
 
@@ -522,3 +544,4 @@ exitgame:
 	BX lr
 
 	.end
+
