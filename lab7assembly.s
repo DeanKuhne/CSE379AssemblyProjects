@@ -1,5 +1,5 @@
 		.data
-board:	.string 0xC, "|---------------------------------------------|", 0xA, 0xD, "|*********************************************|", 0xA, 0xD, "|*****     *****     *****     *****     *****|", 0xA, 0xD, "|~~~~~~~~~~Aaaaaa~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~LLLLLL~~~~~~~~~~~~O~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~LLLLLL~~~~~~~~~~~~~TT~~~~~~~~~~~O~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~TT~~~~~~Aaaaaa~~~~~~~~~~~~|", 0xA, 0xD, "|.............................................|", 0xA, 0xD, "|        C                  C                 |", 0xA, 0xD, "|     ####                  ####              |", 0xA, 0xD, "| C C                                         |", 0xA, 0xD, "|                 #### ####                   |", 0xA, 0xD, "|C                                   C        |", 0xA, 0xD, "|     ####                ####                |", 0xA, 0xD, "|&............................................|", 0xA, 0xD, "|---------------------------------------------|", 0
+board:	.string 0xC, "|---------------------------------------------|", 0xA, 0xD, "|*********************************************|", 0xA, 0xD, "|*****     *****     *****     *****     *****|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|", 0xA, 0xD, "|.............................................|", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|                                             |", 0xA, 0xD, "|&............................................|", 0xA, 0xD, "|---------------------------------------------|", 0
 legend:	.string "| |: Vertical Wall      | +10 for moving forward one space   |", 0xA, 0xD, "| -: Horizontal Wall    | -10 for moving back one space      |", 0xA, 0xD, "| a: Alligator's Back   | +50 for getting a frog home safely |", 0xA, 0xD, "| A: Alligator's Mouth  | +100 for eating a fly              |", 0xA, 0xD, "| L: Log                | +250 for completing the level      |", 0xA, 0xD, "| O: Lily Pad           | +10 for each second of unused time |", 0xA, 0xD, "| &: Frog               |	 when getting a frog home    |", 0xA, 0xD, "| T: Turtle             |", 0xA, 0xD, "| C: Car                |", 0xA, 0xD, "| #: Truck              |", 0xA, 0xD, "| +: Fly                |", 0xA, 0xD, "| H: Occupied Home      |", 0xA, 0xD, "| ~: Water              |", 0
 
 
@@ -21,6 +21,7 @@ legend:	.string "| |: Vertical Wall      | +10 for moving forward one space   |"
 	.global illuminate_RGB_LED
 	.global uart_disable
 	.global character_newline
+	.global rand
 ptr: .word board
 ptrl: .word legend
 
@@ -215,14 +216,7 @@ endtimer:
 ;#0x2000724D
 	STMFD sp!, {r0, r1, r2, r3, r4, r7, r8, r9, r10, r12}
 
-
 	MOV r2, #0x20
-
-	MOV r10, #0x027A	; carloop2
-	MOVT r10, #0x2000
-
-	MOV r0, #0x0218	; carloop4
-	MOVT r0, #0x2000
 
 	MOV r12, #0x01B6	; carloop6
 	MOVT r12, #0x2000
@@ -236,10 +230,14 @@ endtimer:
 	MOV r7, #0x021D		; truckloop5
 	MOVT r7, #0x2000
 
+precarloop2:
+	MOV r10, #0x027A	; carloop2
+	MOVT r10, #0x2000
+
 carloop2:
 	LDRB r3, [r10], #-1
 	CMP r3, #0x7C
-	BEQ carloop4
+	BEQ spawnfor2
 	CMP r3, #0x20
 	BEQ carloop2
 	CMP r3, #0x26
@@ -254,6 +252,56 @@ carloop21:
 	BEQ carloop2
 	STRB r3, [r10, #2] ;set the space to the left of head to the new # character
 	B carloop2
+;-----------------------------
+spawnfor2:
+
+	MOV r4, #0x024e
+	MOVT r4, #0x2000
+
+	STMFD sp!, {r1-r12, lr}
+	BL rand ; GRAB DAT RANDOM NUMBER WHITE BOI
+	LDMFD sp!, {r1-r12, lr}
+
+	CMP r0, #0x26 ; is it time to spawn a random thing?
+	BGT precarloop4 ; proceed on if it's not time
+; here if we wanna spawn a neww oneee
+	CMP r0, #0x20
+	BGT spawncaron2 ; if between 14-26 spawn a car
+; here if spawning a truck on 2 with r0 range of 0-13 inclusive
+
+;want to check if first 4 spots to right of r4 are spaces
+	LDRB r3, [r4]
+	CMP r3, #0x20
+	BNE precarloop4 ; if first slot is occupied, skip the spawning and go to carloop2
+	LDRB r3, [r4, #1]
+	CMP r3, #0x20
+	BNE precarloop4 ; if second slot is occupied, skip the spawning and go to carloop2
+	LDRB r3, [r4, #2]
+	CMP r3, #0x20
+	BNE precarloop4 ; if third slot is occupied, skip the spawning and go to carloop2
+	LDRB r3, [r4, #3]
+	CMP r3, #0x20
+	BNE precarloop4 ; if fourth slot is occupied, skip the spawning and go to carloop2
+; here if we have space to spawn a truck
+	MOV r3, #0x23
+	STRB r3, [r4] ;set the space to the left of head to the new # character
+	STRB r3, [r4, #1] ;set the space to the left of head to the new # character
+	STRB r3, [r4, #2] ;set the space to the left of head to the new # character
+	STRB r3, [r4, #3] ;set the space to the left of head to the new # character
+	B precarloop4
+
+spawncaron2:
+	LDRB r3, [r4]
+	CMP r3, #0x20
+	BNE precarloop4 ; if first slot is occupied, skip the spawning and go to carloop2
+	MOV r3, #0x43
+	STRB r3, [r4] ;set the space to the left of head to the new C character
+	B precarloop4
+
+;-----------------------------
+precarloop4:
+	MOV r0, #0x0218	; carloop4
+	MOVT r0, #0x2000
 
 carloop4:
 	LDRB r3, [r0], #-1
