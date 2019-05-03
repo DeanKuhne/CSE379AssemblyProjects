@@ -17,6 +17,9 @@
 	.global compute
 	.global inttoascii
 	.global uart_disable
+	.global timerdecrease
+	.global timer_disable
+	.global timer_init2
 
 gpio_init:
 	STMFD sp!,{lr,r0,r2}	; Store register lr on stack
@@ -142,34 +145,6 @@ uart_init:
 	ORR r2, r2, #0
 	STR r2, [r0]
 
-; Set UART0_IBRD_R for 57,600 baud
-;	MOV r0, #0xC024
-;	MOVT r0, #0x4000
-;	LDR r2, [r0]
-;	ORR r2, r2, #17
-;	STR r2, [r0]
-
-; Set UART0_FBRD_R for 57,600 baud
-;	MOV r0, #0xC028
-;	MOVT r0, #0x4000
-;	LDR r2, [r0]
-;	ORR r2, r2, #23
-;	STR r2, [r0]
-
-; Set UART0_IBRD_R for 115,200 baud
-;	MOV r0, #0xC024
-;	MOVT r0, #0x4000
-;	LDR r2, [r0]
-;	ORR r2, r2, #8
-;	STR r2, [r0]
-
-; Set UART0_FBRD_R for 115,200 baud
-;	MOV r0, #0xC028
-;	MOVT r0, #0x4000
-;	LDR r2, [r0]
-;	ORR r2, r2, #44
-;	STR r2, [r0]
-
 ; Set UART0_IBRD_R for 921,600 baud
 	MOV r0, #0xC024
 	MOVT r0, #0x4000
@@ -245,8 +220,6 @@ uart_init:
 	LDR r2, [r0]
 	ORR r2, r2, #0x10
 	STR r2, [r0]
-
-
 
 	LDMFD sp!, {lr,r0,r1,r2}
 	BX lr
@@ -371,7 +344,104 @@ delay:
 ;--------------------END OF TIMER INIT------------------------------------
 
 
+timerdecrease:
+	STMFD sp!, {r0-r5, r7-r12, lr}
 
+	MOV r10, #0x0000
+	MOVT r10, #0x4003
+	MOV r12, #0x1000
+	MOVT r12, #0x4003
+
+	LDRB r2, [r10, #0xC]		; disable timer interrupt for Timer 0A
+	BIC r2, r2, #1
+	STRB r2, [r10, #0xC]
+
+	LDRB r2, [r12, #0xC]		; disable timer interrupt for Timer 1A
+	BIC r2, r2, #1
+	STRB r2, [r12, #0xC]
+
+	MOV r4, #0x1A80
+	MOVT r4, #0x0006	; amount to decrease interval by
+
+	MOV r3, #0x1200
+	MOVT r3, #0x007A
+
+	SUB r5, r3, r4		; timer value for level 1
+	SUB r8, r5, r4		; timer value for level 2
+	SUB r7, r6, r4		; timer value for level 3
+
+	LDR r2, [r10, #0x28]		; Set interrupt interval (period)
+	CMP r2, r3
+	BNE level1
+	MOV v3, #50
+	STR r5, [r10, #0x28]
+	B leavelevelup
+
+level1:
+	CMP r2, r5
+	BNE level2
+	MOV v3, #40
+	STR r8, [r10, #0x28]
+	B leavelevelup
+
+
+level2:
+	CMP r2, r8
+	BNE leavelevelup
+	MOV v3, #30
+	STR r7, [r10, #0x28]
+	B leavelevelup
+
+leavelevelup:
+
+	LDR r2, [r10, #0xC]		; enable the timer
+	ORR r2, r2, #0x1
+	STR r2, [r10, #0xC]
+
+	LDR r2, [r12, #0xC]		; enable the timer
+	ORR r2, r2, #0x1
+	STR r2, [r12, #0xC]
+
+	LDMFD sp!, {r0-r5, r7-r12, lr}
+	BX lr
+
+timer_disable:
+	STMFD SP!, {r2, r10, r12, lr}
+
+	MOV r10, #0x0000
+	MOVT r10, #0x4003
+	MOV r12, #0x1000
+	MOVT r12, #0x4003
+
+	LDRB r2, [r10, #0xC]		; disable timer interrupt for Timer 0A
+	BIC r2, r2, #1
+	STRB r2, [r10, #0xC]
+
+	LDRB r2, [r12, #0xC]		; disable timer interrupt for Timer 1A
+	BIC r2, r2, #1
+	STRB r2, [r12, #0xC]
+
+	LDMFD sp!, {r2, r10, r12, lr}
+	BX lr
+
+timer_init2:
+	STMFD SP!, {r2, r10, r12, lr}
+
+	MOV r10, #0x0000
+	MOVT r10, #0x4003
+	MOV r12, #0x1000
+	MOVT r12, #0x4003
+
+	LDR r2, [r10, #0xC]		; enable the timer
+	ORR r2, r2, #0x1
+	STR r2, [r10, #0xC]
+
+	LDR r2, [r12, #0xC]		; enable the timer
+	ORR r2, r2, #0x1
+	STR r2, [r12, #0xC]
+
+	LDMFD sp!, {r2, r10, r12, lr}
+	BX lr
 
 
 read_character:
